@@ -7,20 +7,22 @@ const port = 3000;
 app.use(express.json());
 
 const users = [];
+const allItems = [];
 
 // MySQL connection
-const con = mysql.createConnection({
+const pool = mysql.createPool({
   host: "193.203.184.7",
   user: "u223830212_sumit786",
   password: "TenC@1234",
   database: "u223830212_sumit",
 });
 
-con.connect(function (err) {
+pool.getConnection(function (err) {
   if (err) {
     console.error("Error connecting to MySQL: ", err);
+  } else {
+    console.log("Connected to MySQL!");
   }
-  console.log("Connected to MySQL!");
 });
 
 // Signup route
@@ -34,11 +36,12 @@ app.post("/signup", (req, res) => {
     id: id,
     email: email,
     password: password,
+    purchases: [],
   };
 
-  var insertData = `INSERT INTO student (name, address, phone,email, id, password) VALUES (?, ?, ?, ?, ?, ?)`;
+  const insertData = `INSERT INTO student (name, address, phone, email, id, password) VALUES (?, ?, ?, ?, ?, ?)`;
 
-  con.query(
+  pool.query(
     insertData,
     [name, address, phone, email, id, password],
     function (err) {
@@ -55,22 +58,54 @@ app.post("/signup", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  const id = req.body.id;
-  const password = req.body.password;
+  const { id, password } = req.body;
 
-  for (let i = 0; i < users.length; i++) {
-    if (users[i].id === id) {
-      if (users[i].password === password) {
-        res.json(users[i]);
-        return;
-      } else {
-        res.json({ message: "Invalid Password" });
+  pool.query(
+    "SELECT * FROM student WHERE id = ? AND password = ?",
+    [id, password],
+    function (err, results) {
+      if (err) {
+        console.error("Error querying data: ", err);
+        res.json({ error: "Error querying data" });
         return;
       }
+      if (results.length > 0) {
+        res.json(results[0]);
+      } else {
+        res.json({ message: "Invalid ID or Password" });
+      }
     }
-  }
+  );
+});
 
-  res.json({ message: "User not found" });
+app.post("/purchase", (req, res) => {
+  const { id, password, iId } = req.body;
+
+  pool.query(
+    "SELECT * FROM student WHERE id = ? AND password = ?",
+    [id, password],
+    function (err, results) {
+      if (err) {
+        console.error("Error querying data: ", err);
+        res.json({ error: "Error querying data" });
+        return;
+      }
+      if (results.length > 0) {
+        const user = results[0];
+        for (let j = 0; j < allItems.length; j++) {
+          if (allItems[j].id === iId) {
+            user.purchases = user.purchases || [];
+            user.purchases.push(allItems[j]);
+            res.json(user);
+            return;
+          }
+        }
+        res.json({ message: "Item not found" });
+      } else {
+        res.json({ message: "Invalid ID or Password" });
+      }
+    }
+  );
 });
 
 app.listen(port, () => {
