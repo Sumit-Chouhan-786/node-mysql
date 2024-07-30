@@ -57,6 +57,7 @@ app.post("/signup", (req, res) => {
   );
 });
 
+// Login route
 app.post("/login", (req, res) => {
   const { id, password } = req.body;
 
@@ -78,36 +79,34 @@ app.post("/login", (req, res) => {
   );
 });
 
+
 app.post("/purchase", (req, res) => {
-  const { id, password, iId } = req.body;
+  const { name, id, price } = req.body;
 
-  pool.query(
-    "SELECT * FROM student WHERE id = ? AND password = ?",
-    [id, password],
-    function (err, results) {
-      if (err) {
-        console.error("Error querying data: ", err);
-        res.json({ error: "Error querying data" });
-        return;
-      }
-      if (results.length > 0) {
-        const user = results[0];
-        for (let j = 0; j < allItems.length; j++) {
-          if (allItems[j].id === iId) {
-            user.purchases = user.purchases || [];
-            user.purchases.push(allItems[j]);
-            res.json(user);
-            return;
-          }
-        }
-        res.json({ message: "Item not found" });
-      } else {
-        res.json({ message: "Invalid ID or Password" });
-      }
+  const sql = `SELECT * FROM products WHERE id = ? AND name = ?`;
+
+  pool.query(sql, [id, name], (err, result) => {
+    if (err) {
+      console.log("Error executing query:", err);
+      return res.json({ message: "Database error" });
     }
-  );
-});
+    if (result.length > 0) {
+      return res.json({ message: "Course already purchased" });
+    }
 
+    const { name, id, price } = req.body;
+
+    const sql = `INSERT INTO products ( name, id, price) VALUES ( ?, ?, ?)`;
+
+    pool.query(sql, [name, id, price], (err, result) => {
+      if (err) {
+        console.log("Error executing query:", err);
+        return res.json({ message: "Database error" });
+      }
+      return res.json({ message: "Course purchased" });
+    });
+  });
+});
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
